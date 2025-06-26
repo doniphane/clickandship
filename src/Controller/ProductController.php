@@ -3,198 +3,188 @@
 namespace App\Controller;
 
 use App\Entity\Product;
+use App\Repository\ProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
+#[Route('/api/products')]
 class ProductController extends AbstractController
 {
-    #[Route('/api/products/create', name: 'api_products_create', methods: ['POST'])]
-    public function createProduct(
-        Request $request,
-        EntityManagerInterface $entityManager,
-        SerializerInterface $serializer,
-        ValidatorInterface $validator
-    ): Response {
-        try {
-            // Récupérer et valider les données JSON
-            $content = $request->getContent();
-            if (empty($content)) {
-                return $this->json([
-                    'error' => 'Le contenu de la requête ne peut pas être vide'
-                ], Response::HTTP_BAD_REQUEST);
-            }
-
-            $data = json_decode($content, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                return $this->json([
-                    'error' => 'Format JSON invalide'
-                ], Response::HTTP_BAD_REQUEST);
-            }
-
-            // Validation des champs requis
-            if (!isset($data['name']) || !isset($data['price']) || !isset($data['stockQuantity'])) {
-                return $this->json([
-                    'error' => 'Nom, prix et quantité en stock sont requis'
-                ], Response::HTTP_BAD_REQUEST);
-            }
-
-            // Créer un nouveau produit
-            $product = new Product();
-            $product->setName(trim($data['name']));
-            $product->setPrice((float) $data['price']);
-            $product->setStockQuantity((int) $data['stockQuantity']);
-
-            // Champs optionnels
-            if (isset($data['description'])) {
-                $product->setDescription($data['description']);
-            }
-            if (isset($data['imageName'])) {
-                $product->setImageName($data['imageName']);
-            }
-
-            // Validation de l'entité
-            $errors = $validator->validate($product);
-            if (count($errors) > 0) {
-                $errorMessages = [];
-                foreach ($errors as $error) {
-                    $errorMessages[] = $error->getMessage();
-                }
-                return $this->json([
-                    'error' => 'Données invalides',
-                    'details' => $errorMessages
-                ], Response::HTTP_BAD_REQUEST);
-            }
-
-            // Sauvegarder le produit en base de données
-            $entityManager->persist($product);
-            $entityManager->flush();
-
-            // Sérialiser la réponse sinon sa marche pas 
-            $json = $serializer->serialize($product, 'json', ['groups' => 'product:read']);
-
-            return new Response($json, Response::HTTP_CREATED, [
-                'Content-Type' => 'application/json'
-            ]);
-        } catch (\Exception $e) {
-            return $this->json([
-                'error' => 'Une erreur est survenue lors de la création du produit'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+    public function __construct(
+        private EntityManagerInterface $entityManager,
+        private SerializerInterface $serializer,
+        private ValidatorInterface $validator
+    ) {
     }
 
-    #[Route('/api/products/{id}/update', name: 'api_products_update', methods: ['PUT'])]
-    public function updateProduct(
-        int $id,
-        Request $request,
-        EntityManagerInterface $entityManager,
-        SerializerInterface $serializer,
-        ValidatorInterface $validator
-    ): Response {
+    #[Route('', name: 'api_product_create', methods: ['POST'])]
+    public function create(Request $request): JsonResponse
+    {
         try {
-            // Trouver le produit dans la base de donnée 
-            $product = $entityManager->getRepository(Product::class)->find($id);
-            if (!$product) {
-                return $this->json([
-                    'error' => 'Produit non trouvé'
-                ], Response::HTTP_NOT_FOUND);
-            }
+            // Récupérer les données du formulaire multipart
+            $name = $request->request->get('name');
+            $description = $request->request->get('description');
+            $price = $request->request->get('price');
+            $stockQuantity = $request->request->get('stockQuantity');
+            $imageFile = $request->files->get('imageFile');
 
-            // Récupérer les données JSON
-            $content = $request->getContent();
-            if (empty($content)) {
+            // Validation des données obligatoires
+            if (!$name || !$price || !$stockQuantity) {
                 return $this->json([
-                    'error' => 'Le contenu de la requête ne peut pas être vide'
+                    'error' => 'Les champs name, price et stockQuantity sont obligatoires'
                 ], Response::HTTP_BAD_REQUEST);
             }
 
-            $data = json_decode($content, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                return $this->json([
-                    'error' => 'Format JSON invalide'
-                ], Response::HTTP_BAD_REQUEST);
+            // Créer le produit
+            $product = new Product();
+            $product->setName($name);
+            $product->setDescription($description);
+            $product->setPrice((float) $price);
+            $product->setStockQuantity((int) $stockQuantity);
+
+            // Gérer l'upload d'image si fourni
+            if ($imageFile) {
+                $product->setImageFile($imageFile);
             }
 
-            // Mettre à jour les champs
-            if (isset($data['name'])) {
-                $product->setName(trim($data['name']));
-            }
-            if (isset($data['description'])) {
-                $product->setDescription($data['description']);
-            }
-            if (isset($data['price'])) {
-                $product->setPrice((float) $data['price']);
-            }
-            if (isset($data['stockQuantity'])) {
-                $product->setStockQuantity((int) $data['stockQuantity']);
-            }
-            if (isset($data['imageName'])) {
-                $product->setImageName($data['imageName']);
-            }
-
-            // Validation de l'entité
-            $errors = $validator->validate($product);
+            // Valider l'entité
+            $errors = $this->validator->validate($product);
             if (count($errors) > 0) {
                 $errorMessages = [];
                 foreach ($errors as $error) {
                     $errorMessages[] = $error->getMessage();
                 }
                 return $this->json([
-                    'error' => 'Données invalides',
+                    'error' => 'Erreurs de validation',
                     'details' => $errorMessages
                 ], Response::HTTP_BAD_REQUEST);
             }
 
-            // Sauvegarder les modifications
-            $entityManager->flush();
+            // Persister en base
+            $this->entityManager->persist($product);
+            $this->entityManager->flush();
 
             // Sérialiser la réponse
-            $json = $serializer->serialize($product, 'json', ['groups' => 'product:read']);
+            $productJson = $this->serializer->serialize($product, 'json', ['groups' => 'product:read']);
 
-            return new Response($json, Response::HTTP_OK, [
-                'Content-Type' => 'application/json'
-            ]);
+            return $this->json([
+                'message' => 'Produit créé avec succès',
+                'product' => json_decode($productJson, true)
+            ], Response::HTTP_CREATED);
         } catch (\Exception $e) {
             return $this->json([
-                'error' => 'Une erreur est survenue lors de la modification du produit'
+                'error' => 'Erreur lors de la création du produit',
+                'message' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
-    #[Route('/api/products/{id}/delete', name: 'api_products_delete', methods: ['DELETE'])]
-    public function deleteProduct(
-        int $id,
-        EntityManagerInterface $entityManager
-    ): Response {
+    #[Route('/{id}', name: 'api_product_update', methods: ['PUT'])]
+    public function update(Request $request, int $id): JsonResponse
+    {
         try {
-            // Trouver le produit
-            $product = $entityManager->getRepository(Product::class)->find($id);
+            // Récupérer le produit
+            $product = $this->entityManager->getRepository(Product::class)->find($id);
             if (!$product) {
                 return $this->json([
                     'error' => 'Produit non trouvé'
                 ], Response::HTTP_NOT_FOUND);
             }
 
-            // Supprimer le produit
-            $entityManager->remove($product);
-            $entityManager->flush();
+            // Récupérer les données du formulaire multipart
+            $name = $request->request->get('name');
+            $description = $request->request->get('description');
+            $price = $request->request->get('price');
+            $stockQuantity = $request->request->get('stockQuantity');
+            $imageFile = $request->files->get('imageFile');
+
+            // Mettre à jour les champs si fournis
+            if ($name !== null) {
+                $product->setName($name);
+            }
+            if ($description !== null) {
+                $product->setDescription($description);
+            }
+            if ($price !== null) {
+                $product->setPrice((float) $price);
+            }
+            if ($stockQuantity !== null) {
+                $product->setStockQuantity((int) $stockQuantity);
+            }
+
+            // Gérer l'upload d'image si fourni
+            if ($imageFile) {
+                $product->setImageFile($imageFile);
+            }
+
+            // Valider l'entité
+            $errors = $this->validator->validate($product);
+            if (count($errors) > 0) {
+                $errorMessages = [];
+                foreach ($errors as $error) {
+                    $errorMessages[] = $error->getMessage();
+                }
+                return $this->json([
+                    'error' => 'Erreurs de validation',
+                    'details' => $errorMessages
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            // Mettre à jour la date de modification
+            $product->setUpdatedAt(new \DateTimeImmutable());
+
+            // Persister en base
+            $this->entityManager->flush();
+
+            // Sérialiser la réponse
+            $productJson = $this->serializer->serialize($product, 'json', ['groups' => 'product:read']);
 
             return $this->json([
-                'message' => 'Produit supprimé avec succès',
-                'id' => $id
-            ], Response::HTTP_OK);
+                'message' => 'Produit mis à jour avec succès',
+                'product' => json_decode($productJson, true)
+            ]);
         } catch (\Exception $e) {
             return $this->json([
-                'error' => 'Une erreur est survenue lors de la suppression du produit'
+                'error' => 'Erreur lors de la mise à jour du produit',
+                'message' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
-    #[Route('/api/products/test', name: 'api_products_test', methods: ['GET'])]
+    #[Route('/{id}', name: 'api_product_delete', methods: ['DELETE'])]
+    public function delete(int $id): JsonResponse
+    {
+        try {
+            // Récupérer le produit
+            $product = $this->entityManager->getRepository(Product::class)->find($id);
+            if (!$product) {
+                return $this->json([
+                    'error' => 'Produit non trouvé'
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            // Supprimer le produit (l'image sera automatiquement supprimée par VichUploader)
+            $this->entityManager->remove($product);
+            $this->entityManager->flush();
+
+            return $this->json([
+                'message' => 'Produit supprimé avec succès'
+            ]);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Erreur lors de la suppression du produit',
+                'message' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('/test', name: 'api_products_test', methods: ['GET'])]
     public function test(): Response
     {
         return $this->json([
@@ -209,7 +199,7 @@ class ProductController extends AbstractController
         ]);
     }
 
-    #[Route('/api/products/stats', name: 'api_products_stats', methods: ['GET'])]
+    #[Route('/stats', name: 'api_products_stats', methods: ['GET'])]
     public function stats(EntityManagerInterface $entityManager): Response
     {
         $productRepository = $entityManager->getRepository(Product::class);
