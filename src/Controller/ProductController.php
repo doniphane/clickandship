@@ -20,8 +20,7 @@ class ProductController extends AbstractController
         private EntityManagerInterface $entityManager,
         private SerializerInterface $serializer,
         private ValidatorInterface $validator
-    ) {
-    }
+    ) {}
 
     #[Route('', name: 'api_product_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
@@ -135,9 +134,6 @@ class ProductController extends AbstractController
                     'details' => $errorMessages
                 ], Response::HTTP_BAD_REQUEST);
             }
-
-            // Mettre à jour la date de modification
-            $product->setUpdatedAt(new \DateTimeImmutable());
 
             // Persister en base
             $this->entityManager->flush();
