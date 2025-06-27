@@ -13,17 +13,21 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
+// Le contrôleur s'occupe de gérer les inscriptions des utilisateurs (authentification)
 class AuthController extends AbstractController
 {
+    // Cette route permet d’enregistrer un nouvel utilisateur 
     #[Route('/api/register', name: 'api_register', methods: ['POST'])]
     public function register(
-        Request $request,
+        Request $request, // Permet de récupérer les données envoyées dans la requête HTTP
         UserPasswordHasherInterface $passwordHasher,
         EntityManagerInterface $entityManager,
         ValidatorInterface $validator
     ): JsonResponse {
+        // On décode les données JSON envoyées dans le body de la requête
         $data = json_decode($request->getContent(), true);
 
+        // On vérifie que l'email et le mot de passe ont bien été fournis
         if (!$data || !isset($data['email']) || !isset($data['password'])) {
             return $this->json([
                 'error' => 'Email et mot de passe requis'
@@ -33,7 +37,7 @@ class AuthController extends AbstractController
         $email = $data['email'];
         $password = $data['password'];
 
-        // Vérifier si l'utilisateur existe déjà
+        // On vérifie si un utilisateur avec cet email existe déjà en base
         $existingUser = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
         if ($existingUser) {
             return $this->json([
@@ -41,14 +45,16 @@ class AuthController extends AbstractController
             ], Response::HTTP_CONFLICT);
         }
 
-        // Créer un nouvel utilisateur
+        // crée un nouvel utilisateur
         $user = new User();
         $user->setEmail($email);
+
+        // On chiffrement du mot de passe avant de l’enregistrer 
         $user->setPassword($passwordHasher->hashPassword($user, $password));
 
-        // Valider l'entité
         $errors = $validator->validate($user);
         if (count($errors) > 0) {
+
             $errorMessages = [];
             foreach ($errors as $error) {
                 $errorMessages[] = $error->getMessage();
@@ -59,10 +65,11 @@ class AuthController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        // Sauvegarder l'utilisateur
+
         $entityManager->persist($user);
         $entityManager->flush();
 
+        // On retourne une réponse de succès avec les infos principales de l'utilisateur
         return $this->json([
             'message' => 'Utilisateur créé avec succès',
             'user' => [
