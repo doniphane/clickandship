@@ -66,6 +66,10 @@ class Product
     #[Groups(['product:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['product:read', 'product:write'])]
+    private ?string $category = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -145,6 +149,17 @@ class Product
     {
         $this->createdAt = $createdAt;
 
+        return $this;
+    }
+
+    public function getCategory(): ?string
+    {
+        return $this->category;
+    }
+
+    public function setCategory(?string $category): static
+    {
+        $this->category = $category;
         return $this;
     }
 }

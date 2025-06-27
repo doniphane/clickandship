@@ -56,6 +56,9 @@ class ProductController extends AbstractController
             if (isset($data['imageName'])) {
                 $product->setImageName($data['imageName']);
             }
+            if (isset($data['category'])) {
+                $product->setCategory($data['category']);
+            }
 
             // Validation de l'entité
             $errors = $validator->validate($product);
@@ -134,6 +137,9 @@ class ProductController extends AbstractController
             }
             if (isset($data['imageName'])) {
                 $product->setImageName($data['imageName']);
+            }
+            if (isset($data['category'])) {
+                $product->setCategory($data['category']);
             }
 
             // Validation de l'entité
