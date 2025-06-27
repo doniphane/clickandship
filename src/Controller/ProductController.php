@@ -194,20 +194,7 @@ class ProductController extends AbstractController
         }
     }
 
-    #[Route('/api/products/test', name: 'api_products_test', methods: ['GET'])]
-    public function test(): Response
-    {
-        return $this->json([
-            'message' => 'API des produits fonctionne correctement !',
-            'endpoints' => [
-                'GET /api/products' => 'Liste tous les produits (API Platform)',
-                'GET /api/products/{id}' => 'Voir un produit spécifique (API Platform)',
-                'POST /api/products/create' => 'Créer un produit (sans authentification)',
-                'PUT /api/products/{id}/update' => 'Modifier un produit (sans authentification)',
-                'DELETE /api/products/{id}/delete' => 'Supprimer un produit (sans authentification)'
-            ]
-        ]);
-    }
+
 
     #[Route('/api/products/stats', name: 'api_products_stats', methods: ['GET'])]
     public function stats(EntityManagerInterface $entityManager): Response
