@@ -8,6 +8,10 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use App\Repository\ProductRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -26,6 +30,9 @@ use Symfony\Component\Validator\Constraints as Assert;
     normalizationContext: ['groups' => ['product:read']],
     denormalizationContext: ['groups' => ['product:write']]
 )]
+#[ApiFilter(SearchFilter::class, properties: ['name' => 'partial', 'category' => 'exact'])]
+#[ApiFilter(RangeFilter::class, properties: ['price', 'stockQuantity'])]
+#[ApiFilter(OrderFilter::class, properties: ['name', 'price', 'createdAt', 'stockQuantity'])]
 class Product
 {
     #[ORM\Id]
@@ -161,5 +168,10 @@ class Product
     {
         $this->category = $category;
         return $this;
+    }
+
+    public function isInStock(): bool
+    {
+        return $this->stockQuantity > 0;
     }
 }
