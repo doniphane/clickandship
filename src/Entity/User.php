@@ -22,6 +22,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     operations: [
         new Get(),
         new GetCollection(),
+        //  permet de créer un nouvel utilisateur et envoyer les donnée a mon datatransformer pour hasher le mode passe.
         new Post(
             processor: UserDataTransformer::class
         )

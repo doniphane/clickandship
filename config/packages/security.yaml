@@ -28,11 +28,19 @@ security:
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
     access_control:
+        # Lecture publique des produits
+        - { path: ^/api/products$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/products/\d+$, roles: PUBLIC_ACCESS, methods: [GET] }
+        
+        # Opérations CRUD sur les produits - seulement les vendeurs
+        - { path: ^/api/products$, roles: ROLE_SELLER, methods: [POST, PUT, DELETE] }
+        - { path: ^/api/products/\d+$, roles: ROLE_SELLER, methods: [PUT, DELETE] }
+        
+        # Autres routes
         - { path: ^/api/login_check, roles: PUBLIC_ACCESS }
-        - { path: ^/api/register, roles: PUBLIC_ACCESS }
-        - { path: ^/api/products/\d+$, roles: PUBLIC_ACCESS }
-        - { path: ^/api/products$, roles: PUBLIC_ACCESS }
-        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api/users, roles: PUBLIC_ACCESS }
+        - { path: ^/api/profile, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api, roles: PUBLIC_ACCESS }
 
 when@test:
     security:

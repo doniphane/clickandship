@@ -21,11 +21,28 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(),
-        new Post(),
-        new Put(),
-        new Delete()
+
+        new Get(
+            security: "is_granted('PUBLIC_ACCESS')"
+        ),
+        new GetCollection(
+            security: "is_granted('PUBLIC_ACCESS')"
+        ),
+
+        new Post(
+            security: "is_granted('ROLE_SELLER')",
+            securityMessage: 'Seuls les vendeurs peuvent créer des produits'
+        ),
+
+        new Put(
+            security: "is_granted('ROLE_SELLER')",
+            securityMessage: 'Seuls les vendeurs peuvent modifier des produits'
+        ),
+
+        new Delete(
+            security: "is_granted('ROLE_SELLER')",
+            securityMessage: 'Seuls les vendeurs peuvent supprimer des produits'
+        )
     ],
     normalizationContext: ['groups' => ['product:read']],
     denormalizationContext: ['groups' => ['product:write']]
